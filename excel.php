@@ -1,17 +1,8 @@
 <?php
 
-namespace app\models;
-
-use Yii;
-
-class MascReport extends BaseModel
+class ExcelExport
 {
-    /**
-     * @param  $logId
-     * @param  $summary
-     * @return
-     */
-    public function export($logId, $summary)
+    public function export()
     {
         ini_set('memory_limit', '1024M');
         set_time_limit(0);
@@ -39,45 +30,20 @@ class MascReport extends BaseModel
                 'Bounce 90 Goal',
             ],
         ];
-        $summary = json_decode($summary);
-        $sum = [];
-        $i = 0;
-        foreach ($summary as $key => $record) {
-            $sum[$i]['Week']      = $record->week;
-            $sum[$i]['bounce_30']      = round($record->bounce_30 / 10000, 4);
-            $sum[$i]['bounce_30_goal'] = round($record->bounce_30_goal / 10000, 4);
-            $sum[$i]['bounce_90']      = round($record->bounce_90 / 10000, 4);
-            $sum[$i]['bounce_90_goal'] = round($record->bounce_90_goal / 10000, 4);
-            $i++;
-        }
-        $summary = array_merge($header1, $sum);
-        $query  = (new \yii\db\Query())->select(['week', 'masc_code', 'masc_name', 'apc_code', 'apc_description', 'bounce_30', 'bounce_30_goal', 'bounce_90', 'bounce_90_goal', 'brand'])->where(['log_id' => $logId])->from('masc_report');
-        $query->orderBy(['week' => 'desc', 'masc_code' => 'desc', 'apc_code' => 'desc', 'brand' => 'desc']);
-        $records = $query->all();
-
-        foreach ($records as $key => &$record) {
-            if ($record['week'] == 'WEEK TO DATE') {
-                unset($records[$key]);
-                continue;
-            }
-            $record['bounce_30']      = round($record['bounce_30'] / 10000, 4);
-            $record['bounce_30_goal'] = round($record['bounce_30_goal'] / 10000, 4);
-            $record['bounce_90']      = round($record['bounce_90'] / 10000, 4);
-            $record['bounce_90_goal'] = round($record['bounce_90_goal'] / 10000, 4);
-        }
-        $records = array_merge($header2, $records);
+        $summary = '';
+        $summary = array_merge($header1, $summary);// first sheet data
+        $records = '';
+        $records = array_merge($header2, $records);// second sheet data
 
         // init PHPExcel
-        $phpExcelPath = Yii::getAlias('@app') . '/libs/Excel';
-        include($phpExcelPath . '/PHPExcel.php');
-        $fileName = 'MASC_Report_Bounce_30-90' . date('_Ymd_His_') . rand(10000, 99999) . '.xlsx';
-        $filePath = Yii::getAlias('@app') . '/runtime/';
+        include('/PHPExcel.php');
         $PHPExcel = new \PHPExcel();
 
         // first sheet
         $currentSheet = $PHPExcel->getActiveSheet();
-        $sheet_title   = 'Bounce 30-90 graph';
+        $sheet_title   = 'First sheet';
         $currentSheet->setTitle($sheet_title);
+        // set format
         $currentSheet->getStyle('B')->getNumberFormat()->setFormatCode(\PHPExcel_Style_NumberFormat::FORMAT_PERCENTAGE_00);
         $currentSheet->getStyle('C')->getNumberFormat()->setFormatCode(\PHPExcel_Style_NumberFormat::FORMAT_PERCENTAGE_00);
         $currentSheet->getStyle('D')->getNumberFormat()->setFormatCode(\PHPExcel_Style_NumberFormat::FORMAT_PERCENTAGE_00);
@@ -122,6 +88,7 @@ class MascReport extends BaseModel
                 $datas2
             )
         ];
+        // set direction for bar chart
         $series[0]->setPlotDirection(\PHPExcel_Chart_DataSeries::DIRECTION_COL);
         $layout = new \PHPExcel_Chart_Layout();
         $layout->setShowPercent(true);
@@ -131,11 +98,12 @@ class MascReport extends BaseModel
         $ytitle = new \PHPExcel_Chart_Title('');
         $chart = new \PHPExcel_Chart('line_chart', $title, $legend, $areas, true, false, $title, $ytitle);
         $chart->setTopLeftPosition("H2")->setBottomRightPosition("Q20");
+        // add chart to the first sheet
         $currentSheet->addChart($chart);
 
         // second sheet
         $sheetname = new \PHPExcel_Worksheet();
-        $sheetname->setTitle('Bounce 30-90 database');
+        $sheetname->setTitle('Second sheet');
         $PHPExcel->addSheet($sheetname);
         $currentSheet2 = $PHPExcel->getSheet(1);
         $currentSheet2->getStyle('F')->getNumberFormat()->setFormatCode(\PHPExcel_Style_NumberFormat::FORMAT_PERCENTAGE_00);
@@ -147,11 +115,7 @@ class MascReport extends BaseModel
         // save and send
         $PHPWriter = \PHPExcel_IOFactory::createWriter($PHPExcel, 'Excel2007');
         $PHPWriter->setIncludeCharts(true);
-        $PHPWriter->save($filePath . $fileName);
-        $fileUrl  = Helper::zipFileAndUploadAws($filePath . $fileName, false);
-        $response = Yii::$app->getResponse();
-        $response->setDownloadHeaders(basename($fileUrl), 'application/zip');
-        $response->sendFile($fileUrl);
+        $PHPWriter->save('export.xlsx');
     }
 }
 
