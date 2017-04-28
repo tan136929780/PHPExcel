@@ -1,7 +1,4 @@
 # PHPExcel
-Example for PHPExcel
-How to use PHPExcel to export a xlsx file with chart.
-You can find how to add chart.
-You can find how to add sheet.
-You can find how to set code format.
-This is an example for PHPExcel.
+PHPExcel实例，由于网上对普通的数据导出实例很多，所以没有做相关的复杂介绍；该实例主要是针对chart的生成的简单案例。
+注：
+  PHPExcel对 offic 2007 的支持时可以的，但是对高版本的 offic 或者 wps 在图表支持上可能会出问题，比如：同样2007可以显示坐标轴的刻度，但是2013却不行.
